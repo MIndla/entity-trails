@@ -14,6 +14,10 @@ export const LineageLegend = () => {
           <span className="text-muted-foreground">Source Node</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-8 h-6 rounded border-2 border-accent bg-gradient-surface" />
+          <span className="text-muted-foreground">Entity Node</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-8 h-6 rounded border-2 border-destructive bg-gradient-surface" />
           <span className="text-muted-foreground">Contains PII</span>
         </div>

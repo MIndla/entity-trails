@@ -10,11 +10,12 @@ import ReactFlow, {
   MarkerType,
   ConnectionLineType,
   Panel,
+  EdgeMouseHandler,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import dagre from "dagre";
 
-import EntityNode, { EntityNodeData } from "./EntityNode";
+import EntityNode, { EntityNodeData, Attribute } from "./EntityNode";
 import { LineageToolbar } from "./LineageToolbar";
 import { LineageLegend } from "./LineageLegend";
 
@@ -22,8 +23,8 @@ const nodeTypes = {
   entity: EntityNode,
 };
 
-// Sample data - replace with your actual data
-const initialNodes: Node<EntityNodeData>[] = [
+// Sample data with attributes
+const createInitialNodes = (): Node<EntityNodeData>[] => [
   {
     id: "1",
     type: "entity",
@@ -31,8 +32,13 @@ const initialNodes: Node<EntityNodeData>[] = [
     data: {
       label: "patient",
       type: "source",
-      isForeignKey: false,
-      isPrimaryKey: false,
+      attributes: [
+        { id: "1-1", name: "patient_id", type: "int", isPrimaryKey: true },
+        { id: "1-2", name: "first_name", type: "varchar", hasPII: true },
+        { id: "1-3", name: "last_name", type: "varchar", hasPII: true },
+        { id: "1-4", name: "date_of_birth", type: "date", hasPII: true },
+        { id: "1-5", name: "ssn", type: "varchar", hasPII: true },
+      ],
     },
   },
   {
@@ -42,8 +48,11 @@ const initialNodes: Node<EntityNodeData>[] = [
     data: {
       label: "lookup_address_type",
       type: "source",
-      isForeignKey: false,
-      isPrimaryKey: false,
+      attributes: [
+        { id: "2-1", name: "address_type_id", type: "int", isPrimaryKey: true },
+        { id: "2-2", name: "type_name", type: "varchar" },
+        { id: "2-3", name: "description", type: "varchar" },
+      ],
     },
   },
   {
@@ -54,21 +63,37 @@ const initialNodes: Node<EntityNodeData>[] = [
       label: "patient_address",
       type: "entity",
       hasPII: true,
-      isForeignKey: true,
-      isPrimaryKey: false,
-      isHighlighted: true,
+      attributes: [
+        { id: "3-1", name: "address_id", type: "int", isPrimaryKey: true },
+        { id: "3-2", name: "patient_id", type: "int", isForeignKey: true },
+        { id: "3-3", name: "address_type_id", type: "int", isForeignKey: true },
+        { id: "3-4", name: "street_address", type: "varchar", hasPII: true },
+        { id: "3-5", name: "city", type: "varchar", hasPII: true },
+        { id: "3-6", name: "state", type: "varchar", hasPII: true },
+        { id: "3-7", name: "zip_code", type: "varchar", hasPII: true },
+      ],
     },
   },
 ];
 
-const initialEdges: Edge[] = [
+// Edge metadata for relationship tracking
+interface EdgeMetadata {
+  sourceAttribute?: string;
+  targetAttribute?: string;
+}
+
+const createInitialEdges = (): Edge<EdgeMetadata>[] => [
   {
     id: "e1-3",
     source: "1",
     target: "3",
     type: "smoothstep",
-    animated: true,
+    animated: false,
     label: "FK • 100%",
+    data: {
+      sourceAttribute: "1-1", // patient_id from patient
+      targetAttribute: "3-2", // patient_id in patient_address
+    },
     labelStyle: {
       fill: "hsl(var(--accent))",
       fontWeight: 600,
@@ -89,8 +114,12 @@ const initialEdges: Edge[] = [
     source: "2",
     target: "3",
     type: "smoothstep",
-    animated: true,
+    animated: false,
     label: "FK • 100%",
+    data: {
+      sourceAttribute: "2-1", // address_type_id from lookup_address_type
+      targetAttribute: "3-3", // address_type_id in patient_address
+    },
     labelStyle: {
       fill: "hsl(var(--accent))",
       fontWeight: 600,
@@ -144,10 +173,14 @@ const getLayoutedElements = (
 export const DataLineageViewer = () => {
   const [layout, setLayout] = useState("TB");
   const [showPIIOnly, setShowPIIOnly] = useState(false);
+  const [highlightedPath, setHighlightedPath] = useState<Set<string>>(new Set());
+
+  const initialNodesData = useMemo(() => createInitialNodes(), []);
+  const initialEdgesData = useMemo(() => createInitialEdges(), []);
 
   const layoutedElements = useMemo(() => {
-    return getLayoutedElements(initialNodes, initialEdges, layout);
-  }, [layout]);
+    return getLayoutedElements(initialNodesData, initialEdgesData, layout);
+  }, [layout, initialNodesData, initialEdgesData]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(
     layoutedElements.nodes
@@ -156,15 +189,186 @@ export const DataLineageViewer = () => {
     layoutedElements.edges
   );
 
+  // Find all connected nodes and edges in both directions
+  const findConnectedPath = useCallback((attributeId: string, nodeId: string) => {
+    const connectedNodes = new Set<string>([nodeId]);
+    const connectedEdges = new Set<string>();
+    const connectedAttributes = new Set<string>([attributeId]);
+
+    // Find edges connected to this attribute
+    const relatedEdges = edges.filter(edge => {
+      const edgeData = edge.data as EdgeMetadata | undefined;
+      return (
+        (edge.source === nodeId && edgeData?.sourceAttribute === attributeId) ||
+        (edge.target === nodeId && edgeData?.targetAttribute === attributeId)
+      );
+    });
+
+    // Recursively find all connected nodes and attributes
+    const visited = new Set<string>();
+    const traverse = (currentNodeId: string, currentAttrId?: string) => {
+      if (visited.has(currentNodeId)) return;
+      visited.add(currentNodeId);
+
+      edges.forEach(edge => {
+        const edgeData = edge.data as EdgeMetadata | undefined;
+        
+        // Check upstream connections
+        if (edge.target === currentNodeId) {
+          if (!currentAttrId || edgeData?.targetAttribute === currentAttrId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.source);
+            if (edgeData?.sourceAttribute) {
+              connectedAttributes.add(edgeData.sourceAttribute);
+              traverse(edge.source, edgeData.sourceAttribute);
+            }
+          }
+        }
+        
+        // Check downstream connections
+        if (edge.source === currentNodeId) {
+          if (!currentAttrId || edgeData?.sourceAttribute === currentAttrId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.target);
+            if (edgeData?.targetAttribute) {
+              connectedAttributes.add(edgeData.targetAttribute);
+              traverse(edge.target, edgeData.targetAttribute);
+            }
+          }
+        }
+      });
+    };
+
+    traverse(nodeId, attributeId);
+
+    return {
+      nodes: connectedNodes,
+      edges: connectedEdges,
+      attributes: connectedAttributes,
+    };
+  }, [edges]);
+
+  const handleAttributeClick = useCallback((nodeId: string, attributeId: string) => {
+    const path = findConnectedPath(attributeId, nodeId);
+    
+    // Update nodes with highlighted attributes
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHighlighted: path.nodes.has(node.id),
+          attributes: node.data.attributes?.map(attr => ({
+            ...attr,
+            isHighlighted: path.attributes.has(attr.id),
+          })),
+        },
+      }))
+    );
+
+    // Update edges with highlighting
+    setEdges(prevEdges =>
+      prevEdges.map(edge => ({
+        ...edge,
+        animated: path.edges.has(edge.id),
+        style: {
+          ...edge.style,
+          stroke: path.edges.has(edge.id)
+            ? "hsl(var(--primary))"
+            : "hsl(var(--edge-fk))",
+          strokeWidth: path.edges.has(edge.id) ? 3 : 2,
+        },
+      }))
+    );
+
+    setHighlightedPath(path.edges);
+  }, [findConnectedPath, setNodes, setEdges]);
+
+  const handleEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
+    const edgeData = edge.data as EdgeMetadata | undefined;
+    
+    if (edgeData?.sourceAttribute && edgeData?.targetAttribute) {
+      // Highlight the entire path through this edge
+      const sourcePath = findConnectedPath(edgeData.sourceAttribute, edge.source);
+      const targetPath = findConnectedPath(edgeData.targetAttribute, edge.target);
+      
+      const combinedNodes = new Set([...sourcePath.nodes, ...targetPath.nodes]);
+      const combinedEdges = new Set([...sourcePath.edges, ...targetPath.edges]);
+      const combinedAttributes = new Set([...sourcePath.attributes, ...targetPath.attributes]);
+
+      setNodes(prevNodes =>
+        prevNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            isHighlighted: combinedNodes.has(node.id),
+            attributes: node.data.attributes?.map(attr => ({
+              ...attr,
+              isHighlighted: combinedAttributes.has(attr.id),
+            })),
+          },
+        }))
+      );
+
+      setEdges(prevEdges =>
+        prevEdges.map(e => ({
+          ...e,
+          animated: combinedEdges.has(e.id),
+          style: {
+            ...e.style,
+            stroke: combinedEdges.has(e.id)
+              ? "hsl(var(--primary))"
+              : "hsl(var(--edge-fk))",
+            strokeWidth: combinedEdges.has(e.id) ? 3 : 2,
+          },
+        }))
+      );
+
+      setHighlightedPath(combinedEdges);
+    }
+  }, [findConnectedPath, setNodes, setEdges]);
+
+  const handleToggleExpand = useCallback((nodeId: string) => {
+    setNodes(prevNodes =>
+      prevNodes.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              isExpanded: !node.data.isExpanded,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
   const handleLayoutChange = useCallback(
     (newLayout: string) => {
       setLayout(newLayout);
       const { nodes: layoutedNodes, edges: layoutedEdges } =
-        getLayoutedElements(initialNodes, initialEdges, newLayout);
-      setNodes(layoutedNodes);
+        getLayoutedElements(initialNodesData, initialEdgesData, newLayout);
+      
+      // Preserve expand states and callbacks
+      const updatedNodes = layoutedNodes.map(node => {
+        const existingNode = nodes.find(n => n.id === node.id);
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            isExpanded: existingNode?.data.isExpanded || false,
+            onToggleExpand: handleToggleExpand,
+            onAttributeClick: handleAttributeClick,
+          },
+        };
+      });
+      
+      setNodes(updatedNodes);
       setEdges(layoutedEdges);
     },
-    [setNodes, setEdges]
+    [setNodes, setEdges, nodes, initialNodesData, initialEdgesData, handleToggleExpand, handleAttributeClick]
   );
 
   const handleTogglePIIOnly = useCallback(() => {
@@ -185,9 +389,49 @@ export const DataLineageViewer = () => {
   }, []);
 
   const handleClear = useCallback(() => {
-    setNodes([]);
-    setEdges([]);
+    // Clear highlighting
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHighlighted: false,
+          attributes: node.data.attributes?.map(attr => ({
+            ...attr,
+            isHighlighted: false,
+          })),
+        },
+      }))
+    );
+
+    setEdges(prevEdges =>
+      prevEdges.map(edge => ({
+        ...edge,
+        animated: false,
+        style: {
+          ...edge.style,
+          stroke: "hsl(var(--edge-fk))",
+          strokeWidth: 2,
+        },
+      }))
+    );
+
+    setHighlightedPath(new Set());
   }, [setNodes, setEdges]);
+
+  // Initialize nodes with callbacks
+  useMemo(() => {
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onToggleExpand: handleToggleExpand,
+          onAttributeClick: handleAttributeClick,
+        },
+      }))
+    );
+  }, [handleToggleExpand, handleAttributeClick, setNodes]);
 
   return (
     <div className="w-full h-screen bg-background">
@@ -209,6 +453,7 @@ export const DataLineageViewer = () => {
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          onEdgeClick={handleEdgeClick}
           nodeTypes={nodeTypes}
           connectionLineType={ConnectionLineType.SmoothStep}
           fitView
@@ -216,7 +461,7 @@ export const DataLineageViewer = () => {
           maxZoom={2}
           defaultEdgeOptions={{
             type: "smoothstep",
-            animated: true,
+            animated: false,
           }}
           className="bg-background"
         >
