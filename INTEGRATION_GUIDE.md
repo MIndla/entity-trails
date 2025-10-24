@@ -1,13 +1,26 @@
-# Data Lineage Integration Guide
+# Data Lineage System - Integration Guide for ModelBridge.ai
 
-This guide explains how to integrate the redesigned Data Lineage system into your existing application.
+This guide explains how the Data Lineage visualization system integrates into the ModelBridge.ai Data Architecture/Data Modeling platform.
 
 ## Overview
 
-The system is built with three main components:
-1. **Search Panel** (left) - Entity and attribute search with quick filters
-2. **Graph Canvas** (center) - Interactive lineage visualization
-3. **Details Panel** (right) - Rich context and metadata display
+The Data Lineage system provides a comprehensive, interactive visualization of data flows across your organization. It features a modern 3-panel layout, intelligent search, URL-based deep linking, and attribute-level lineage tracking.
+
+## ModelBridge.ai Integration
+
+The Data Lineage viewer is integrated into the **Data Governance** menu:
+
+```
+Data Governance → Data Lineage → /governance/lineage
+```
+
+### Context Menu Integration
+
+From the Model Studio canvas, users can right-click any entity and select **"View Lineage (Track data flow)"** to navigate directly to the lineage viewer with that entity in focus:
+
+```
+/governance/lineage?entity=patient&mode=forward
+```
 
 ## Architecture
 
@@ -22,19 +35,18 @@ src/
 │       ├── DataLineageViewer.tsx      # Main viewer (3-panel layout)
 │       ├── LineageSearch.tsx          # Search panel
 │       ├── LineageDetails.tsx         # Details panel
-│       ├── EntityNode.tsx             # Node component (existing)
-│       ├── LineageToolbar.tsx         # Toolbar (existing)
-│       └── LineageLegend.tsx          # Legend (existing)
-├── pages/
-│   └── DataLineage.tsx         # Page wrapper with routing
-└── App.tsx                     # Route configuration
+│       ├── EntityNode.tsx             # Node component
+│       ├── LineageToolbar.tsx         # Toolbar
+│       └── LinageLegend.tsx          # Legend
+└── pages/
+    └── DataLineage.tsx         # Page wrapper with routing
 ```
 
 ## Key Features Implemented
 
 ### Phase 1 - Foundation ✅
 - ✅ 3-panel responsive layout
-- ✅ URL-based routing (`/lineage?entity=X&attribute=Y`)
+- ✅ URL-based routing (`/governance/lineage?entity=X&attribute=Y`)
 - ✅ Entity/attribute search with live results
 - ✅ Rich details panel with metadata display
 - ✅ Node and edge selection with context
@@ -47,88 +59,109 @@ src/
 - ✅ PII filtering and highlighting
 - ✅ Multiple filter options
 
-### Phase 3 - Integration Ready 🚧
+### Phase 3 - Integration Ready ✅
 - ✅ Deep linking support
 - ✅ Modular component structure
-- ⏳ Right-click context menu (ready to integrate)
-- ⏳ Saved views (localStorage structure ready)
+- ✅ Right-click context menu integration ready
+- ✅ Integration with ModelBridge.ai navigation
 
-## Integration Steps
+## Integration Steps (Already Completed)
 
-### 1. Copy Core Files
+### 1. Core Files (✓ Installed)
 
-Copy these files into your existing project:
+All core files are installed in the project:
 
-```bash
-# Type definitions
-src/types/lineage.ts
-
-# Hooks
-src/hooks/useLineageState.ts
-
-# Components
-src/components/lineage/LineageSearch.tsx
-src/components/lineage/LineageDetails.tsx
-src/components/lineage/DataLineageViewer.tsx  # (updated version)
-
-# Page (optional - if using routing)
-src/pages/DataLineage.tsx
+```
+src/
+├── types/
+│   └── lineage.ts              # TypeScript types for lineage entities and edges
+├── hooks/
+│   └── useLineageState.ts      # State management hook with URL sync
+├── components/
+│   └── lineage/
+│       ├── DataLineageViewer.tsx    # Main viewer component
+│       ├── EntityNode.tsx           # Custom node component
+│       ├── LineageSearch.tsx        # Search panel
+│       ├── LineageDetails.tsx       # Details panel
+│       ├── LineageToolbar.tsx       # Layout/filter controls
+│       └── LineageLegend.tsx        # Visual legend
+└── pages/
+    └── DataLineage.tsx         # Page wrapper component
 ```
 
-### 2. Update Your Router
+### 2. Router Configuration (✓ Configured)
 
-Add the lineage route to your existing router configuration:
+The lineage route is configured at `/governance/lineage`:
 
 ```tsx
-// In your main router file (e.g., App.tsx, Routes.tsx)
-import DataLineage from './pages/DataLineage';
+// In App.tsx
+import DataLineage from "./pages/DataLineage";
 
-<Route path="/lineage" element={<DataLineage />} />
+<Routes>
+  <Route path="/" element={<Index />} />
+  <Route path="/governance/lineage" element={<DataLineage />} />
+  <Route path="*" element={<NotFound />} />
+</Routes>
 ```
 
-### 3. Add Navigation Link
+### 3. Navigation Integration (For Your Implementation)
 
-Add a link to the lineage viewer in your main navigation:
+Add the Data Lineage link to your existing Data Governance dropdown menu:
 
 ```tsx
-import { Link } from 'react-router-dom';
-import { Network } from 'lucide-react';
-
-<Link to="/lineage">
-  <Network className="h-4 w-4" />
-  Data Lineage
-</Link>
+// In your main navigation component
+<NavigationMenuItem>
+  <NavigationMenuTrigger>Data Governance</NavigationMenuTrigger>
+  <NavigationMenuContent>
+    <Link to="/governance/retention">Data Retention Policies</Link>
+    <Link to="/governance/compliance">Compliance Management</Link>
+    {/* ... other governance links ... */}
+    <Link to="/governance/lineage">
+      <Network className="mr-2 h-4 w-4" />
+      Data Lineage
+    </Link>
+    <Link to="/governance/audit">Audit & Monitoring</Link>
+  </NavigationMenuContent>
+</NavigationMenuItem>
 ```
 
-### 4. Integration from Data Model (Right-Click)
+### 4. Context Menu Integration (For Your Model Studio)
 
-To invoke lineage from your data model diagram:
+When users right-click an entity in your Model Studio canvas, navigate to lineage viewer:
 
 ```tsx
-// In your data model component
+// In your Model Studio context menu handler
 import { useNavigate } from 'react-router-dom';
+import { Network } from 'lucide-react';
 
 const navigate = useNavigate();
 
-const handleShowLineage = (entityId: string) => {
-  navigate(`/lineage?entity=${entityId}&mode=entity`);
+const handleViewLineage = (entityId: string) => {
+  navigate(`/governance/lineage?entity=${entityId}&mode=forward`);
 };
 
-const handleShowAttributeLineage = (entityId: string, attributeId: string) => {
-  navigate(`/lineage?attribute=${entityId}.${attributeId}&mode=attribute`);
-};
-
-// Add context menu
+// Context menu (as shown in your screenshot)
 <ContextMenu>
-  <ContextMenuItem onClick={() => handleShowLineage(entity.id)}>
-    Show Lineage
+  <ContextMenuItem onClick={() => handleViewLineage(selectedEntity.id)}>
+    <Network className="mr-2 h-4 w-4" />
+    View Lineage (Track data flow)
+  </ContextMenuItem>
+  <ContextMenuSeparator />
+  <ContextMenuItem onClick={() => handleDuplicateEntity()}>
+    Duplicate Entity
+  </ContextMenuItem>
+  <ContextMenuItem onClick={() => handleDeleteEntity()}>
+    Delete Entity
+  </ContextMenuItem>
+  <ContextMenuItem onClick={() => handleCopyName()}>
+    Copy Entity Name
   </ContextMenuItem>
 </ContextMenu>
 ```
 
 ### 5. Embed as Component (Alternative)
 
-If you want to embed the lineage viewer within another page instead of a separate route:
+If you want to embed the lineage viewer within another page:
 
 ```tsx
 import { DataLineageViewer } from '@/components/lineage/DataLineageViewer';
@@ -162,12 +195,12 @@ The system supports deep linking with URL parameters:
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `entity` | Focus on specific entity | `/lineage?entity=patient` |
-| `attribute` | Focus on specific attribute | `/lineage?attribute=patient.ssn` |
-| `mode` | View mode | `/lineage?mode=impact` |
-| `pii` | Filter PII only | `/lineage?pii=true` |
-| `domain` | Filter by domain | `/lineage?domain=healthcare` |
-| `depth` | Expansion depth | `/lineage?depth=3` |
+| `entity` | Focus on specific entity | `/governance/lineage?entity=patient` |
+| `attribute` | Focus on specific attribute | `/governance/lineage?attribute=patient.ssn` |
+| `mode` | View mode | `/governance/lineage?mode=impact` |
+| `pii` | Filter PII only | `/governance/lineage?pii=true` |
+| `domain` | Filter by domain | `/governance/lineage?domain=healthcare` |
+| `depth` | Expansion depth | `/governance/lineage?depth=3` |
 
 ## Data Structure
 
@@ -310,15 +343,16 @@ For large graphs (>100 nodes):
 4. **Debounce search**: Already implemented (500ms)
 5. **Memoize expensive calculations**: Already using `useMemo` and `useCallback`
 
-## Testing Integration
+## Testing Integration Checklist
 
-1. **Navigate to `/lineage`** - Should show empty search state
-2. **Search for "patient"** - Should show entity in results
-3. **Click result** - Should focus graph on that entity
-4. **Click expand (+)** - Should show attributes
-5. **Click attribute** - Should highlight lineage path
-6. **Check details panel** - Should show metadata
-7. **Test URL params** - `/lineage?entity=patient` should work
+- [ ] Navigate to `/governance/lineage` - Should show empty search state
+- [ ] Search for "patient" - Should show entity in results
+- [ ] Click result - Should focus graph on that entity
+- [ ] Click expand (+) - Should show attributes
+- [ ] Click attribute - Should highlight lineage path
+- [ ] Check details panel - Should show metadata
+- [ ] Test URL params - `/governance/lineage?entity=patient` should work
+- [ ] Test from Model Studio - Right-click context menu navigation works
 
 ## Next Steps (Phase 3 Enhancement Ideas)
 
@@ -351,4 +385,4 @@ For questions or issues:
 
 ## License
 
-This implementation is part of your existing project and follows your project's license.
+This implementation is part of your ModelBridge.ai project and follows your project's license.
