@@ -663,6 +663,7 @@ function DataLineageFlow() {
             onEdgesChange={onEdgesChange}
             onNodeClick={handleNodeClick}
             onEdgeClick={handleEdgeClick}
+            onPaneClick={handleClear}
             nodeTypes={nodeTypes}
             fitView
             className="bg-background"
