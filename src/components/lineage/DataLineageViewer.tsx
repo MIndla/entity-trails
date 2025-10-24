@@ -22,6 +22,9 @@ import { LineageDetails } from "./LineageDetails";
 import type { EntityNodeData } from "./EntityNode";
 import type { LineageEdgeMetadata } from "@/types/lineage";
 import { useSearchParams } from "react-router-dom";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronLeft, ChevronRight, PanelLeftClose, PanelRightClose } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const nodeTypes = {
   entity: EntityNode,
@@ -309,6 +312,8 @@ function DataLineageFlow() {
   const [selectedNode, setSelectedNode] = useState<Node<EntityNodeData> | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge<LineageEdgeMetadata> | null>(null);
   const [impactMetrics, setImpactMetrics] = useState({ upstream: 0, downstream: 0 });
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   const initialNodesData = useMemo(() => createInitialNodes(), []);
   const initialEdgesData = useMemo(() => createInitialEdges(), []);
@@ -625,15 +630,29 @@ function DataLineageFlow() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Search */}
-        <div className="w-80 border-r border-border flex-shrink-0">
-          <LineageSearch
-            onSelectEntity={handleSelectEntity}
-            onSelectAttribute={handleSelectAttribute}
-            entities={nodes}
-          />
-        </div>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left Panel - Collapsible Search */}
+        <Collapsible open={leftPanelOpen} onOpenChange={setLeftPanelOpen} className="flex-shrink-0">
+          <CollapsibleContent>
+            <div className="w-80 border-r border-border h-full">
+              <LineageSearch
+                onSelectEntity={handleSelectEntity}
+                onSelectAttribute={handleSelectAttribute}
+                entities={nodes}
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+        
+        {/* Left Panel Toggle Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`absolute ${leftPanelOpen ? 'left-[19.5rem]' : 'left-2'} top-4 z-[15] bg-card/90 backdrop-blur-sm border border-border hover:bg-card shadow-md h-8 w-8`}
+          onClick={() => setLeftPanelOpen(!leftPanelOpen)}
+        >
+          {leftPanelOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
 
         {/* Center Panel - Graph */}
         <div className="flex-1 relative">
@@ -672,21 +691,35 @@ function DataLineageFlow() {
                 onClear={handleClear}
               />
             </Panel>
-            <Panel position="bottom-right">
+            <Panel position="bottom-left" className="mb-4 ml-4">
               <LineageLegend />
             </Panel>
           </ReactFlow>
         </div>
 
-        {/* Right Panel - Details */}
-        <div className="w-96 border-l border-border flex-shrink-0">
-          <LineageDetails
-            selectedNode={selectedNode}
-            selectedEdge={selectedEdge}
-            nodes={nodes}
-            impactMetrics={impactMetrics}
-          />
-        </div>
+        {/* Right Panel - Collapsible Details */}
+        <Collapsible open={rightPanelOpen} onOpenChange={setRightPanelOpen} className="flex-shrink-0">
+          <CollapsibleContent>
+            <div className="w-96 border-l border-border h-full">
+              <LineageDetails
+                selectedNode={selectedNode}
+                selectedEdge={selectedEdge}
+                nodes={nodes}
+                impactMetrics={impactMetrics}
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+        
+        {/* Right Panel Toggle Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`absolute ${rightPanelOpen ? 'right-[23.5rem]' : 'right-2'} top-4 z-[15] bg-card/90 backdrop-blur-sm border border-border hover:bg-card shadow-md h-8 w-8`}
+          onClick={() => setRightPanelOpen(!rightPanelOpen)}
+        >
+          {rightPanelOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
       </div>
     </div>
   );
