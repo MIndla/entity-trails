@@ -18,6 +18,9 @@ import dagre from "dagre";
 import EntityNode, { EntityNodeData, Attribute } from "./EntityNode";
 import { LineageToolbar } from "./LineageToolbar";
 import { LineageLegend } from "./LineageLegend";
+import { LineageSearch } from "./LineageSearch";
+import { LineageDetails } from "./LineageDetails";
+import { LineageEdgeMetadata } from "@/types/lineage";
 
 const nodeTypes = {
   entity: EntityNode,
@@ -76,13 +79,9 @@ const createInitialNodes = (): Node<EntityNodeData>[] => [
   },
 ];
 
-// Edge metadata for relationship tracking
-interface EdgeMetadata {
-  sourceAttribute?: string;
-  targetAttribute?: string;
-}
+// Using shared EdgeMetadata from types
 
-const createInitialEdges = (): Edge<EdgeMetadata>[] => [
+const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
   {
     id: "e1-3",
     source: "1",
@@ -170,10 +169,28 @@ const getLayoutedElements = (
   return { nodes: layoutedNodes, edges };
 };
 
-export const DataLineageViewer = () => {
+interface DataLineageViewerProps {
+  showSearch?: boolean;
+  showDetails?: boolean;
+  initialFocusId?: string;
+  initialFocusType?: 'entity' | 'attribute';
+  onNodeSelect?: (node: Node<EntityNodeData>) => void;
+  onEdgeSelect?: (edge: Edge<LineageEdgeMetadata>) => void;
+}
+
+export const DataLineageViewer = ({
+  showSearch = true,
+  showDetails = true,
+  initialFocusId,
+  initialFocusType,
+  onNodeSelect,
+  onEdgeSelect,
+}: DataLineageViewerProps = {}) => {
   const [layout, setLayout] = useState("TB");
   const [showPIIOnly, setShowPIIOnly] = useState(false);
   const [highlightedPath, setHighlightedPath] = useState<Set<string>>(new Set());
+  const [selectedNode, setSelectedNode] = useState<Node<EntityNodeData> | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Edge<LineageEdgeMetadata> | null>(null);
 
   const initialNodesData = useMemo(() => createInitialNodes(), []);
   const initialEdgesData = useMemo(() => createInitialEdges(), []);
@@ -197,7 +214,7 @@ export const DataLineageViewer = () => {
 
     // Find edges connected to this attribute
     const relatedEdges = edges.filter(edge => {
-      const edgeData = edge.data as EdgeMetadata | undefined;
+      const edgeData = edge.data as LineageEdgeMetadata | undefined;
       return (
         (edge.source === nodeId && edgeData?.sourceAttribute === attributeId) ||
         (edge.target === nodeId && edgeData?.targetAttribute === attributeId)
@@ -211,7 +228,7 @@ export const DataLineageViewer = () => {
       visited.add(currentNodeId);
 
       edges.forEach(edge => {
-        const edgeData = edge.data as EdgeMetadata | undefined;
+        const edgeData = edge.data as LineageEdgeMetadata | undefined;
         
         // Check upstream connections
         if (edge.target === currentNodeId) {
@@ -252,40 +269,48 @@ export const DataLineageViewer = () => {
     const path = findConnectedPath(attributeId, nodeId);
     
     // Update nodes with highlighted attributes
-    setNodes(prevNodes =>
-      prevNodes.map(node => ({
-        ...node,
-        data: {
-          ...node.data,
-          isHighlighted: path.nodes.has(node.id),
-          attributes: node.data.attributes?.map(attr => ({
-            ...attr,
-            isHighlighted: path.attributes.has(attr.id),
-          })),
-        },
-      }))
-    );
+    const updatedNodes = nodes.map(node => ({
+      ...node,
+      data: {
+        ...node.data,
+        isHighlighted: path.nodes.has(node.id),
+        attributes: node.data.attributes?.map(attr => ({
+          ...attr,
+          isHighlighted: path.attributes.has(attr.id),
+        })),
+      },
+    }));
+    
+    setNodes(updatedNodes);
 
     // Update edges with highlighting
-    setEdges(prevEdges =>
-      prevEdges.map(edge => ({
-        ...edge,
-        animated: path.edges.has(edge.id),
-        style: {
-          ...edge.style,
-          stroke: path.edges.has(edge.id)
-            ? "hsl(var(--primary))"
-            : "hsl(var(--edge-fk))",
-          strokeWidth: path.edges.has(edge.id) ? 3 : 2,
-        },
-      }))
-    );
+    const updatedEdges = edges.map(edge => ({
+      ...edge,
+      animated: path.edges.has(edge.id),
+      style: {
+        ...edge.style,
+        stroke: path.edges.has(edge.id)
+          ? "hsl(var(--primary))"
+          : "hsl(var(--edge-fk))",
+        strokeWidth: path.edges.has(edge.id) ? 3 : 2,
+      },
+    }));
+    
+    setEdges(updatedEdges);
 
     setHighlightedPath(path.edges);
-  }, [findConnectedPath, setNodes, setEdges]);
+    
+    // Set selected node for details panel
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNode(node);
+      setSelectedEdge(null);
+      onNodeSelect?.(node);
+    }
+  }, [findConnectedPath, nodes, edges, setNodes, setEdges, onNodeSelect]);
 
   const handleEdgeClick: EdgeMouseHandler = useCallback((event, edge) => {
-    const edgeData = edge.data as EdgeMetadata | undefined;
+    const edgeData = edge.data as LineageEdgeMetadata | undefined;
     
     if (edgeData?.sourceAttribute && edgeData?.targetAttribute) {
       // Highlight the entire path through this edge
@@ -325,8 +350,13 @@ export const DataLineageViewer = () => {
       );
 
       setHighlightedPath(combinedEdges);
+      
+      // Set selected edge for details panel
+      setSelectedEdge(edge as Edge<LineageEdgeMetadata>);
+      setSelectedNode(null);
+      onEdgeSelect?.(edge as Edge<LineageEdgeMetadata>);
     }
-  }, [findConnectedPath, setNodes, setEdges]);
+  }, [findConnectedPath, setNodes, setEdges, onEdgeSelect]);
 
   const handleToggleExpand = useCallback((nodeId: string) => {
     setNodes(prevNodes =>
@@ -417,6 +447,8 @@ export const DataLineageViewer = () => {
     );
 
     setHighlightedPath(new Set());
+    setSelectedNode(null);
+    setSelectedEdge(null);
   }, [setNodes, setEdges]);
 
   // Initialize nodes with callbacks
@@ -433,9 +465,26 @@ export const DataLineageViewer = () => {
     );
   }, [handleToggleExpand, handleAttributeClick, setNodes]);
 
+  const handleSelectEntity = useCallback((entityId: string) => {
+    const node = nodes.find(n => n.id === entityId);
+    if (node) {
+      setSelectedNode(node);
+      setSelectedEdge(null);
+      onNodeSelect?.(node);
+      
+      // Center on node
+      handleClear();
+    }
+  }, [nodes, onNodeSelect, handleClear]);
+
+  const handleSelectAttribute = useCallback((entityId: string, attributeId: string) => {
+    handleAttributeClick(entityId, attributeId);
+  }, [handleAttributeClick]);
+
   return (
-    <div className="w-full h-screen bg-background">
-      <div className="h-16 border-b border-border bg-card flex items-center px-6">
+    <div className="w-full h-screen bg-background flex flex-col">
+      {/* Header */}
+      <div className="h-16 border-b border-border bg-card flex items-center px-6 flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
             Data Lineage
@@ -447,8 +496,22 @@ export const DataLineageViewer = () => {
         </div>
       </div>
 
-      <div className="relative w-full" style={{ height: "calc(100vh - 4rem)" }}>
-        <ReactFlow
+      {/* Main Content Area with 3 Panels */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Panel - Search */}
+        {showSearch && (
+          <div className="w-80 flex-shrink-0">
+            <LineageSearch
+              onSelectEntity={handleSelectEntity}
+              onSelectAttribute={handleSelectAttribute}
+              entities={nodes}
+            />
+          </div>
+        )}
+
+        {/* Center Panel - Graph */}
+        <div className="flex-1 relative">
+          <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -484,23 +547,35 @@ export const DataLineageViewer = () => {
             }}
             maskColor="hsl(var(--background) / 0.8)"
           />
-          <Panel position="top-left">
-            <LineageToolbar
-              layout={layout}
-              onLayoutChange={handleLayoutChange}
-              showPIIOnly={showPIIOnly}
-              onTogglePIIOnly={handleTogglePIIOnly}
-              nodeCount={nodes.length}
-              edgeCount={edges.length}
-              onFitView={handleFitView}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onClear={handleClear}
-            />
-          </Panel>
-        </ReactFlow>
+            <Panel position="top-left">
+              <LineageToolbar
+                layout={layout}
+                onLayoutChange={handleLayoutChange}
+                showPIIOnly={showPIIOnly}
+                onTogglePIIOnly={handleTogglePIIOnly}
+                nodeCount={nodes.length}
+                edgeCount={edges.length}
+                onFitView={handleFitView}
+                onZoomIn={handleZoomIn}
+                onZoomOut={handleZoomOut}
+                onClear={handleClear}
+              />
+            </Panel>
+          </ReactFlow>
 
-        <LineageLegend />
+          <LineageLegend />
+        </div>
+
+        {/* Right Panel - Details */}
+        {showDetails && (
+          <div className="w-96 flex-shrink-0">
+            <LineageDetails
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              nodes={nodes}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

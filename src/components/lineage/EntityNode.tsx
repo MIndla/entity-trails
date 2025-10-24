@@ -12,6 +12,8 @@ export interface Attribute {
   isForeignKey?: boolean;
   hasPII?: boolean;
   isHighlighted?: boolean;
+  description?: string;
+  sampleValues?: string[];
 }
 
 export interface EntityNodeData {
