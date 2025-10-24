@@ -678,7 +678,7 @@ function DataLineageFlow() {
                 return "hsl(var(--accent))";
               }}
             />
-            <Panel position="top-left">
+            <Panel position="top-left" className="flex gap-3">
               <LineageToolbar
                 layout={layout}
                 onLayoutChange={handleLayoutChange}
@@ -691,8 +691,6 @@ function DataLineageFlow() {
                 onZoomOut={() => {}}
                 onClear={handleClear}
               />
-            </Panel>
-            <Panel position="bottom-left" className="mb-4 ml-4">
               <LineageLegend />
             </Panel>
           </ReactFlow>

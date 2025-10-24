@@ -3,32 +3,34 @@ import { Card } from "@/components/ui/card";
 
 export function LineageLegend() {
   return (
-    <Card className="bg-card/95 backdrop-blur-sm border-border shadow-elevated p-3">
-      <div className="flex items-center gap-6 text-xs">
-        <span className="text-sm font-semibold text-foreground mr-2">Legend:</span>
+    <Card className="bg-card/95 backdrop-blur-sm border-border shadow-elevated p-2.5">
+      <div className="flex items-center gap-4 text-xs">
+        <span className="text-xs font-semibold text-muted-foreground">Legend:</span>
         
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded border-2 border-primary bg-card" />
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-3.5 rounded border-2 border-primary bg-card" />
           <span className="text-muted-foreground">Source</span>
         </div>
         
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded border-2 border-accent bg-card" />
-          <span className="text-muted-foreground">Entity</span>
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-3.5 rounded border-2 border-accent bg-card" />
+          <span className="text-muted-foreground">Derived</span>
         </div>
         
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-4 rounded border-2 border-destructive bg-card" />
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-3.5 rounded border-2 border-destructive bg-card" />
           <span className="text-muted-foreground">PII</span>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Key className="w-4 h-4 text-warning" />
+        <div className="h-3 w-px bg-border" />
+        
+        <div className="flex items-center gap-1.5">
+          <Key className="w-3.5 h-3.5 text-warning" />
           <span className="text-muted-foreground">PK</span>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Link className="w-4 h-4 text-accent" />
+        <div className="flex items-center gap-1.5">
+          <Link className="w-3.5 h-3.5 text-accent" />
           <span className="text-muted-foreground">FK</span>
         </div>
       </div>
