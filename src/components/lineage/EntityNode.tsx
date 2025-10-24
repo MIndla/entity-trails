@@ -28,6 +28,14 @@ export interface EntityNodeData {
   onToggleExpand?: (nodeId: string) => void;
   onAttributeClick?: (nodeId: string, attributeId: string) => void;
   nodeId?: string;
+  metadata?: {
+    owner?: string;
+    lastModified?: string;
+    rowCount?: number;
+    qualityScore?: number;
+    domain?: string;
+    documentation?: string;
+  };
 }
 
 const EntityNode = memo(({ data, selected, id }: NodeProps<EntityNodeData>) => {
