@@ -16,12 +16,5 @@ import { DataLineageViewer } from '@/components/lineage/DataLineageViewer';
  * - Deep links from alerts, documentation, or query editors
  */
 export default function DataLineage() {
-  return (
-    <div className="w-full h-screen">
-      <DataLineageViewer
-        showSearch={true}
-        showDetails={true}
-      />
-    </div>
-  );
+  return <DataLineageViewer showSearch={true} showDetails={true} />;
 }
