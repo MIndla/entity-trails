@@ -1,66 +1,32 @@
-import { Key, Link, Database, Eye } from "lucide-react";
+import { Key, Link, Database, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
-export const LineageLegend = () => {
+export function LineageLegend() {
   return (
-    <Card className="absolute bottom-6 right-6 p-4 bg-card/95 backdrop-blur-sm border-border shadow-elevated z-10">
-      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-        <Eye className="w-4 h-4" />
-        Legend
-      </h3>
+    <Card className="bg-card/95 backdrop-blur-sm border-border shadow-elevated p-4 mb-4 mr-4">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Legend</h3>
       <div className="space-y-2 text-xs">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-6 rounded border-2 border-primary bg-gradient-surface" />
-          <span className="text-muted-foreground">Source Node</span>
+          <div className="w-8 h-6 rounded border-2 border-primary bg-card" />
+          <span className="text-muted-foreground">Source</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-6 rounded border-2 border-accent bg-gradient-surface" />
-          <span className="text-muted-foreground">Entity Node</span>
+          <div className="w-8 h-6 rounded border-2 border-accent bg-card" />
+          <span className="text-muted-foreground">Entity</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-6 rounded border-2 border-destructive bg-gradient-surface" />
+          <div className="w-8 h-6 rounded border-2 border-destructive bg-card" />
           <span className="text-muted-foreground">Contains PII</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-warning/20 flex items-center justify-center">
-            <Key className="w-3 h-3 text-warning" />
-          </div>
+          <Key className="w-4 h-4 text-warning" />
           <span className="text-muted-foreground">Primary Key</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-accent/20 flex items-center justify-center">
-            <Link className="w-3 h-3 text-accent" />
-          </div>
+          <Link className="w-4 h-4 text-accent" />
           <span className="text-muted-foreground">Foreign Key</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <svg width="32" height="2" className="mt-1">
-            <line
-              x1="0"
-              y1="1"
-              x2="32"
-              y2="1"
-              stroke="hsl(var(--edge-fk))"
-              strokeWidth="2"
-            />
-          </svg>
-          <span className="text-muted-foreground">FK Relationship</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <svg width="32" height="2" className="mt-1">
-            <line
-              x1="0"
-              y1="1"
-              x2="32"
-              y2="1"
-              stroke="hsl(var(--edge-derived))"
-              strokeWidth="2"
-              strokeDasharray="4 4"
-            />
-          </svg>
-          <span className="text-muted-foreground">Derived</span>
         </div>
       </div>
     </Card>
   );
-};
+}
