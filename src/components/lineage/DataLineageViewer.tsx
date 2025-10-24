@@ -422,9 +422,9 @@ function DataLineageFlow() {
         animated: path.edges.has(edge.id),
         style: {
           ...edge.style,
-          stroke: path.edges.has(edge.id) ? "hsl(var(--primary))" : 
+          stroke: path.edges.has(edge.id) ? "rgb(250, 204, 21)" : // yellow-400
                   edge.data?.relationshipType === "DERIVED" ? "hsl(var(--primary))" : "hsl(var(--accent))",
-          strokeWidth: path.edges.has(edge.id) ? 3 : 2,
+          strokeWidth: path.edges.has(edge.id) ? 4 : 2,
         },
       }))
     );
@@ -470,9 +470,9 @@ function DataLineageFlow() {
           animated: combinedEdges.has(e.id),
           style: {
             ...e.style,
-            stroke: combinedEdges.has(e.id) ? "hsl(var(--primary))" :
+            stroke: combinedEdges.has(e.id) ? "rgb(250, 204, 21)" : // yellow-400
                     e.data?.relationshipType === "DERIVED" ? "hsl(var(--primary))" : "hsl(var(--accent))",
-            strokeWidth: combinedEdges.has(e.id) ? 3 : 2,
+            strokeWidth: combinedEdges.has(e.id) ? 4 : 2,
           },
         }))
       );

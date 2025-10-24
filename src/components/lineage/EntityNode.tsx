@@ -55,7 +55,7 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
 
   return (
     <Card className={`min-w-[250px] bg-card border-2 ${borderColor} shadow-node transition-all ${
-      data.isHighlighted ? "ring-2 ring-primary shadow-glow" : ""
+      data.isHighlighted ? "ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/30" : ""
     }`}>
       <Handle type="target" position={Position.Top} className="!bg-accent" />
       
@@ -94,7 +94,7 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
                 onClick={() => handleAttributeClick(attr.id)}
                 className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer transition-all ${
                   attr.isHighlighted 
-                    ? "bg-primary/30 ring-1 ring-primary" 
+                    ? "bg-yellow-400/20 ring-2 ring-yellow-400 shadow-sm" 
                     : "hover:bg-muted"
                 }`}
               >
