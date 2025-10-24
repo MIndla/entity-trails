@@ -9,9 +9,10 @@ interface LineageDetailsProps {
   selectedNode: Node<EntityNodeData> | null;
   selectedEdge: Edge<LineageEdgeMetadata> | null;
   nodes: Node<EntityNodeData>[];
+  impactMetrics?: { upstream: number; downstream: number };
 }
 
-export function LineageDetails({ selectedNode, selectedEdge, nodes }: LineageDetailsProps) {
+export function LineageDetails({ selectedNode, selectedEdge, nodes, impactMetrics }: LineageDetailsProps) {
   if (!selectedNode && !selectedEdge) {
     return (
       <div className="h-full bg-card flex items-center justify-center p-8">
@@ -46,6 +47,23 @@ export function LineageDetails({ selectedNode, selectedEdge, nodes }: LineageDet
                 <Badge variant="destructive" className="ml-2">PII</Badge>
               )}
             </div>
+
+            {/* Impact Analysis */}
+            {impactMetrics && (impactMetrics.upstream > 0 || impactMetrics.downstream > 0) && (
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <h4 className="text-sm font-medium text-foreground">Impact Analysis</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="bg-card rounded p-2">
+                    <div className="text-xs text-muted-foreground">Upstream</div>
+                    <div className="text-lg font-semibold text-primary">{impactMetrics.upstream}</div>
+                  </div>
+                  <div className="bg-card rounded p-2">
+                    <div className="text-xs text-muted-foreground">Downstream</div>
+                    <div className="text-lg font-semibold text-accent">{impactMetrics.downstream}</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {selectedNode.data.metadata && (
               <div className="space-y-2 text-sm">

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -12,6 +12,7 @@ import ReactFlow, {
   Panel,
 } from "reactflow";
 import "reactflow/dist/style.css";
+import dagre from "dagre";
 
 import { EntityNode } from "./EntityNode";
 import { LineageToolbar } from "./LineageToolbar";
@@ -20,20 +21,56 @@ import { LineageSearch } from "./LineageSearch";
 import { LineageDetails } from "./LineageDetails";
 import type { EntityNodeData } from "./EntityNode";
 import type { LineageEdgeMetadata } from "@/types/lineage";
+import { useSearchParams } from "react-router-dom";
 
 const nodeTypes = {
   entity: EntityNode,
 };
 
+// Auto-layout using dagre
+const getLayoutedElements = (
+  nodes: Node[],
+  edges: Edge[],
+  direction: string = "TB"
+) => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: direction, nodesep: 100, ranksep: 150 });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 280, height: 200 });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const layoutedNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - 140,
+        y: nodeWithPosition.y - 100,
+      },
+    };
+  });
+
+  return { nodes: layoutedNodes, edges };
+};
+
 // Sample data - Healthcare System
-const initialNodes: Node<EntityNodeData>[] = [
+const createInitialNodes = (): Node<EntityNodeData>[] => [
   {
     id: "1",
     type: "entity",
-    position: { x: 250, y: 50 },
+    position: { x: 0, y: 0 },
     data: {
       label: "patient",
       type: "source",
+      isExpanded: true,
       attributes: [
         { id: "1-1", name: "patient_id", type: "int", isPrimaryKey: true },
         { id: "1-2", name: "first_name", type: "varchar", hasPII: true },
@@ -48,11 +85,12 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "2",
     type: "entity",
-    position: { x: 50, y: 300 },
+    position: { x: 0, y: 0 },
     data: {
       label: "patient_address",
       type: "entity",
       hasPII: true,
+      isExpanded: true,
       attributes: [
         { id: "2-1", name: "address_id", type: "int", isPrimaryKey: true },
         { id: "2-2", name: "patient_id", type: "int", isForeignKey: true },
@@ -67,10 +105,11 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "3",
     type: "entity",
-    position: { x: 450, y: 300 },
+    position: { x: 0, y: 0 },
     data: {
       label: "appointment",
       type: "entity",
+      isExpanded: true,
       attributes: [
         { id: "3-1", name: "appointment_id", type: "int", isPrimaryKey: true },
         { id: "3-2", name: "patient_id", type: "int", isForeignKey: true },
@@ -84,10 +123,11 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "4",
     type: "entity",
-    position: { x: 700, y: 50 },
+    position: { x: 0, y: 0 },
     data: {
       label: "doctor",
       type: "source",
+      isExpanded: true,
       attributes: [
         { id: "4-1", name: "doctor_id", type: "int", isPrimaryKey: true },
         { id: "4-2", name: "first_name", type: "varchar" },
@@ -101,11 +141,12 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "5",
     type: "entity",
-    position: { x: 700, y: 550 },
+    position: { x: 0, y: 0 },
     data: {
       label: "prescription",
       type: "entity",
       hasPII: true,
+      isExpanded: true,
       attributes: [
         { id: "5-1", name: "prescription_id", type: "int", isPrimaryKey: true },
         { id: "5-2", name: "appointment_id", type: "int", isForeignKey: true },
@@ -119,11 +160,12 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "6",
     type: "entity",
-    position: { x: 250, y: 550 },
+    position: { x: 0, y: 0 },
     data: {
       label: "medical_record",
       type: "entity",
       hasPII: true,
+      isExpanded: true,
       attributes: [
         { id: "6-1", name: "record_id", type: "int", isPrimaryKey: true },
         { id: "6-2", name: "patient_id", type: "int", isForeignKey: true },
@@ -137,10 +179,11 @@ const initialNodes: Node<EntityNodeData>[] = [
   {
     id: "7",
     type: "entity",
-    position: { x: 1000, y: 300 },
+    position: { x: 0, y: 0 },
     data: {
       label: "patient_analytics",
       type: "derived",
+      isExpanded: true,
       attributes: [
         { id: "7-1", name: "analytics_id", type: "int", isPrimaryKey: true },
         { id: "7-2", name: "patient_id", type: "int", isForeignKey: true },
@@ -153,18 +196,21 @@ const initialNodes: Node<EntityNodeData>[] = [
   },
 ];
 
-const initialEdges: Edge<LineageEdgeMetadata>[] = [
+const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
   {
     id: "e1-2",
     source: "1",
     target: "2",
     type: "smoothstep",
-    label: "FK",
+    label: "FK • 100%",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "2-2",
       relationshipType: "FK",
+      confidence: 100,
     },
+    labelStyle: { fill: "hsl(var(--accent))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--accent))", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--accent))" },
   },
@@ -173,12 +219,15 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
     source: "1",
     target: "3",
     type: "smoothstep",
-    label: "FK",
+    label: "FK • 100%",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "3-2",
       relationshipType: "FK",
+      confidence: 100,
     },
+    labelStyle: { fill: "hsl(var(--accent))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--accent))", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--accent))" },
   },
@@ -187,12 +236,15 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
     source: "4",
     target: "3",
     type: "smoothstep",
-    label: "FK",
+    label: "FK • 98%",
     data: {
       sourceAttribute: "4-1",
       targetAttribute: "3-3",
       relationshipType: "FK",
+      confidence: 98,
     },
+    labelStyle: { fill: "hsl(var(--accent))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--accent))", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--accent))" },
   },
@@ -201,12 +253,15 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
     source: "3",
     target: "5",
     type: "smoothstep",
-    label: "FK",
+    label: "FK • 95%",
     data: {
       sourceAttribute: "3-1",
       targetAttribute: "5-2",
       relationshipType: "FK",
+      confidence: 95,
     },
+    labelStyle: { fill: "hsl(var(--accent))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--accent))", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--accent))" },
   },
@@ -215,12 +270,15 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
     source: "1",
     target: "6",
     type: "smoothstep",
-    label: "FK",
+    label: "FK • 100%",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "6-2",
       relationshipType: "FK",
+      confidence: 100,
     },
+    labelStyle: { fill: "hsl(var(--accent))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--accent))", strokeWidth: 2 },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--accent))" },
   },
@@ -234,7 +292,10 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
       sourceAttribute: "1-1",
       targetAttribute: "7-2",
       relationshipType: "DERIVED",
+      confidence: 100,
     },
+    labelStyle: { fill: "hsl(var(--primary))", fontWeight: 600, fontSize: 11 },
+    labelBgStyle: { fill: "hsl(var(--background))", fillOpacity: 0.9 },
     style: { stroke: "hsl(var(--primary))", strokeWidth: 2, strokeDasharray: "5 5" },
     markerEnd: { type: MarkerType.ArrowClosed, color: "hsl(var(--primary))" },
     animated: true,
@@ -242,31 +303,325 @@ const initialEdges: Edge<LineageEdgeMetadata>[] = [
 ];
 
 function DataLineageFlow() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [searchParams] = useSearchParams();
+  const [layout, setLayout] = useState("TB");
+  const [showPIIOnly, setShowPIIOnly] = useState(false);
   const [selectedNode, setSelectedNode] = useState<Node<EntityNodeData> | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<Edge<LineageEdgeMetadata> | null>(null);
+  const [impactMetrics, setImpactMetrics] = useState({ upstream: 0, downstream: 0 });
+
+  const initialNodesData = useMemo(() => createInitialNodes(), []);
+  const initialEdgesData = useMemo(() => createInitialEdges(), []);
+
+  // Apply layout
+  const layoutedElements = useMemo(() => {
+    return getLayoutedElements(initialNodesData, initialEdgesData, layout);
+  }, [layout, initialNodesData, initialEdgesData]);
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedElements.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedElements.edges);
+
+  // Calculate impact metrics
+  const calculateImpact = useCallback((nodeId: string) => {
+    const upstream = new Set<string>();
+    const downstream = new Set<string>();
+
+    const traverse = (id: string, direction: 'up' | 'down', visited = new Set<string>()) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+
+      edges.forEach(edge => {
+        if (direction === 'up' && edge.target === id) {
+          upstream.add(edge.source);
+          traverse(edge.source, 'up', visited);
+        } else if (direction === 'down' && edge.source === id) {
+          downstream.add(edge.target);
+          traverse(edge.target, 'down', visited);
+        }
+      });
+    };
+
+    traverse(nodeId, 'up');
+    traverse(nodeId, 'down');
+
+    return { upstream: upstream.size, downstream: downstream.size };
+  }, [edges]);
+
+  // Path highlighting logic
+  const findConnectedPath = useCallback((attributeId: string, nodeId: string) => {
+    const connectedNodes = new Set<string>([nodeId]);
+    const connectedEdges = new Set<string>();
+    const connectedAttributes = new Set<string>([attributeId]);
+
+    const visited = new Set<string>();
+    
+    const traverse = (currentNodeId: string, currentAttrId?: string) => {
+      if (visited.has(currentNodeId)) return;
+      visited.add(currentNodeId);
+
+      edges.forEach(edge => {
+        const edgeData = edge.data as LineageEdgeMetadata | undefined;
+        
+        // Upstream
+        if (edge.target === currentNodeId) {
+          if (!currentAttrId || edgeData?.targetAttribute === currentAttrId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.source);
+            if (edgeData?.sourceAttribute) {
+              connectedAttributes.add(edgeData.sourceAttribute);
+              traverse(edge.source, edgeData.sourceAttribute);
+            }
+          }
+        }
+        
+        // Downstream
+        if (edge.source === currentNodeId) {
+          if (!currentAttrId || edgeData?.sourceAttribute === currentAttrId) {
+            connectedEdges.add(edge.id);
+            connectedNodes.add(edge.target);
+            if (edgeData?.targetAttribute) {
+              connectedAttributes.add(edgeData.targetAttribute);
+              traverse(edge.target, edgeData.targetAttribute);
+            }
+          }
+        }
+      });
+    };
+
+    traverse(nodeId, attributeId);
+
+    return { nodes: connectedNodes, edges: connectedEdges, attributes: connectedAttributes };
+  }, [edges]);
+
+  // Handle attribute click - highlight path
+  const handleAttributeClick = useCallback((nodeId: string, attributeId: string) => {
+    const path = findConnectedPath(attributeId, nodeId);
+    
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHighlighted: path.nodes.has(node.id),
+          attributes: node.data.attributes?.map(attr => ({
+            ...attr,
+            isHighlighted: path.attributes.has(attr.id),
+          })),
+        },
+      }))
+    );
+    
+    setEdges(prevEdges =>
+      prevEdges.map(edge => ({
+        ...edge,
+        animated: path.edges.has(edge.id),
+        style: {
+          ...edge.style,
+          stroke: path.edges.has(edge.id) ? "hsl(var(--primary))" : 
+                  edge.data?.relationshipType === "DERIVED" ? "hsl(var(--primary))" : "hsl(var(--accent))",
+          strokeWidth: path.edges.has(edge.id) ? 3 : 2,
+        },
+      }))
+    );
+
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setSelectedNode(node);
+      setSelectedEdge(null);
+      const metrics = calculateImpact(nodeId);
+      setImpactMetrics(metrics);
+    }
+  }, [findConnectedPath, nodes, setNodes, setEdges, calculateImpact]);
+
+  // Handle edge click
+  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge<LineageEdgeMetadata>) => {
+    const edgeData = edge.data;
+    
+    if (edgeData?.sourceAttribute && edgeData?.targetAttribute) {
+      const sourcePath = findConnectedPath(edgeData.sourceAttribute, edge.source);
+      const targetPath = findConnectedPath(edgeData.targetAttribute, edge.target);
+      
+      const combinedNodes = new Set([...sourcePath.nodes, ...targetPath.nodes]);
+      const combinedEdges = new Set([...sourcePath.edges, ...targetPath.edges]);
+      const combinedAttributes = new Set([...sourcePath.attributes, ...targetPath.attributes]);
+
+      setNodes(prevNodes =>
+        prevNodes.map(node => ({
+          ...node,
+          data: {
+            ...node.data,
+            isHighlighted: combinedNodes.has(node.id),
+            attributes: node.data.attributes?.map(attr => ({
+              ...attr,
+              isHighlighted: combinedAttributes.has(attr.id),
+            })),
+          },
+        }))
+      );
+
+      setEdges(prevEdges =>
+        prevEdges.map(e => ({
+          ...e,
+          animated: combinedEdges.has(e.id),
+          style: {
+            ...e.style,
+            stroke: combinedEdges.has(e.id) ? "hsl(var(--primary))" :
+                    e.data?.relationshipType === "DERIVED" ? "hsl(var(--primary))" : "hsl(var(--accent))",
+            strokeWidth: combinedEdges.has(e.id) ? 3 : 2,
+          },
+        }))
+      );
+
+      setSelectedEdge(edge);
+      setSelectedNode(null);
+    }
+  }, [findConnectedPath, setNodes, setEdges]);
+
+  // Toggle expand
+  const handleToggleExpand = useCallback((nodeId: string) => {
+    setNodes(prevNodes =>
+      prevNodes.map(node => {
+        if (node.id === nodeId) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              isExpanded: !node.data.isExpanded,
+            },
+          };
+        }
+        return node;
+      })
+    );
+  }, [setNodes]);
+
+  // Initialize callbacks
+  useEffect(() => {
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          onToggleExpand: handleToggleExpand,
+          onAttributeClick: handleAttributeClick,
+        },
+      }))
+    );
+  }, [handleToggleExpand, handleAttributeClick, setNodes]);
+
+  // Handle URL parameters
+  useEffect(() => {
+    const entity = searchParams.get('entity');
+    const attribute = searchParams.get('attribute');
+    
+    if (entity) {
+      const node = nodes.find(n => n.data.label === entity);
+      if (node) {
+        setSelectedNode(node);
+        const metrics = calculateImpact(node.id);
+        setImpactMetrics(metrics);
+      }
+    }
+    
+    if (attribute) {
+      const [entityName, attrName] = attribute.split('.');
+      const node = nodes.find(n => n.data.label === entityName);
+      if (node) {
+        const attr = node.data.attributes.find(a => a.name === attrName);
+        if (attr) {
+          handleAttributeClick(node.id, attr.id);
+        }
+      }
+    }
+  }, [searchParams, nodes, handleAttributeClick, calculateImpact]);
 
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node<EntityNodeData>) => {
     setSelectedNode(node);
     setSelectedEdge(null);
-  }, []);
+    const metrics = calculateImpact(node.id);
+    setImpactMetrics(metrics);
+  }, [calculateImpact]);
 
-  const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge<LineageEdgeMetadata>) => {
-    setSelectedEdge(edge);
-    setSelectedNode(null);
-  }, []);
+  const handleLayoutChange = useCallback((newLayout: string) => {
+    setLayout(newLayout);
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes.map(n => ({ ...n, data: { ...n.data, onToggleExpand: handleToggleExpand, onAttributeClick: handleAttributeClick } })),
+      edges,
+      newLayout
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, setNodes, setEdges, handleToggleExpand, handleAttributeClick]);
 
   const handleClear = useCallback(() => {
+    setNodes(prevNodes =>
+      prevNodes.map(node => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHighlighted: false,
+          attributes: node.data.attributes?.map(attr => ({
+            ...attr,
+            isHighlighted: false,
+          })),
+        },
+      }))
+    );
+
+    setEdges(prevEdges =>
+      prevEdges.map(edge => ({
+        ...edge,
+        animated: edge.data?.relationshipType === "DERIVED",
+        style: {
+          ...edge.style,
+          stroke: edge.data?.relationshipType === "DERIVED" ? "hsl(var(--primary))" : "hsl(var(--accent))",
+          strokeWidth: 2,
+        },
+      }))
+    );
+
     setSelectedNode(null);
     setSelectedEdge(null);
-  }, []);
+    setImpactMetrics({ upstream: 0, downstream: 0 });
+  }, [setNodes, setEdges]);
+
+  const handleSelectEntity = useCallback((entityId: string) => {
+    const node = nodes.find(n => n.id === entityId);
+    if (node) {
+      setSelectedNode(node);
+      setSelectedEdge(null);
+      const metrics = calculateImpact(entityId);
+      setImpactMetrics(metrics);
+      handleClear();
+    }
+  }, [nodes, calculateImpact, handleClear]);
+
+  const handleSelectAttribute = useCallback((entityId: string, attributeId: string) => {
+    handleAttributeClick(entityId, attributeId);
+  }, [handleAttributeClick]);
+
+  const filteredNodes = showPIIOnly 
+    ? nodes.filter(n => n.data.hasPII) 
+    : nodes;
 
   return (
     <div className="w-full h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="h-16 border-b border-border bg-card flex items-center px-6 flex-shrink-0">
-        <h1 className="text-xl font-bold text-primary">Data Lineage Viewer</h1>
+        <div className="flex items-center gap-3 flex-1">
+          <h1 className="text-xl font-bold text-primary">Data Lineage Viewer</h1>
+          {selectedNode && (
+            <>
+              <span className="text-muted-foreground">•</span>
+              <span className="text-muted-foreground font-medium">{selectedNode.data.label}</span>
+              {(impactMetrics.upstream > 0 || impactMetrics.downstream > 0) && (
+                <span className="text-xs text-muted-foreground">
+                  (↑ {impactMetrics.upstream} upstream • ↓ {impactMetrics.downstream} downstream)
+                </span>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Main Content */}
@@ -274,14 +629,8 @@ function DataLineageFlow() {
         {/* Left Panel - Search */}
         <div className="w-80 border-r border-border flex-shrink-0">
           <LineageSearch
-            onSelectEntity={(id) => {
-              const node = nodes.find(n => n.id === id);
-              if (node) setSelectedNode(node);
-            }}
-            onSelectAttribute={(entityId, attrId) => {
-              const node = nodes.find(n => n.id === entityId);
-              if (node) setSelectedNode(node);
-            }}
+            onSelectEntity={handleSelectEntity}
+            onSelectAttribute={handleSelectAttribute}
             entities={nodes}
           />
         </div>
@@ -289,7 +638,7 @@ function DataLineageFlow() {
         {/* Center Panel - Graph */}
         <div className="flex-1 relative">
           <ReactFlow
-            nodes={nodes}
+            nodes={filteredNodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -309,6 +658,20 @@ function DataLineageFlow() {
                 return "hsl(var(--accent))";
               }}
             />
+            <Panel position="top-left">
+              <LineageToolbar
+                layout={layout}
+                onLayoutChange={handleLayoutChange}
+                showPIIOnly={showPIIOnly}
+                onTogglePIIOnly={() => setShowPIIOnly(!showPIIOnly)}
+                nodeCount={nodes.length}
+                edgeCount={edges.length}
+                onFitView={() => {}}
+                onZoomIn={() => {}}
+                onZoomOut={() => {}}
+                onClear={handleClear}
+              />
+            </Panel>
             <Panel position="bottom-right">
               <LineageLegend />
             </Panel>
@@ -321,6 +684,7 @@ function DataLineageFlow() {
             selectedNode={selectedNode}
             selectedEdge={selectedEdge}
             nodes={nodes}
+            impactMetrics={impactMetrics}
           />
         </div>
       </div>
