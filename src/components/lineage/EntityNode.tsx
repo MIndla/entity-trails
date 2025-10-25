@@ -43,8 +43,6 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
     ? "border-destructive"
     : data.type === "source"
     ? "border-primary"
-    : data.type === "derived"
-    ? "border-purple-500"
     : "border-accent";
 
   const handleToggleExpand = (e: React.MouseEvent) => {
