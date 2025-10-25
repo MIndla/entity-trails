@@ -1,7 +1,7 @@
 import { Database, Link as LinkIcon, Info } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import type { Node, Edge } from "reactflow";
+import type { Node, Edge } from "@xyflow/react";
 import type { EntityNodeData } from "./EntityNode";
 import type { LineageEdgeMetadata } from "@/types/lineage";
 

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Handle, Position } from "reactflow";
+import { Handle, Position } from "@xyflow/react";
 import { Database, Key, Link, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,9 +14,10 @@ export interface Attribute {
   isHighlighted?: boolean;
   description?: string;
   sampleValues?: string[];
+  [key: string]: unknown;
 }
 
-export interface EntityNodeData {
+export interface EntityNodeData extends Record<string, unknown> {
   label: string;
   type: "source" | "entity" | "derived" | "destination";
   hasPII?: boolean;

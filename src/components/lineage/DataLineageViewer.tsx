@@ -1,5 +1,6 @@
 import { useCallback, useState, useMemo, useEffect } from "react";
-import ReactFlow, {
+import {
+  ReactFlow,
   Background,
   Controls,
   MiniMap,
@@ -10,8 +11,8 @@ import ReactFlow, {
   MarkerType,
   ReactFlowProvider,
   Panel,
-} from "reactflow";
-import "reactflow/dist/style.css";
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
 
 import { EntityNode } from "./EntityNode";
@@ -32,8 +33,8 @@ const nodeTypes = {
 
 // Auto-layout using dagre
 const getLayoutedElements = (
-  nodes: Node[],
-  edges: Edge[],
+  nodes: Node<EntityNodeData>[],
+  edges: Edge<LineageEdgeMetadata>[],
   direction: string = "TB"
 ) => {
   const dagreGraph = new dagre.graphlib.Graph();
@@ -402,17 +403,17 @@ function DataLineageFlow() {
   const handleAttributeClick = useCallback((nodeId: string, attributeId: string) => {
     const path = findConnectedPath(attributeId, nodeId);
     
-    setNodes(prevNodes =>
-      prevNodes.map(node => ({
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => ({
         ...node,
         data: {
           ...node.data,
           isHighlighted: path.nodes.has(node.id),
-          attributes: node.data.attributes?.map(attr => ({
+          attributes: (node.data.attributes || []).map((attr) => ({
             ...attr,
             isHighlighted: path.attributes.has(attr.id),
           })),
-        },
+        } as EntityNodeData,
       }))
     );
     

@@ -30,7 +30,7 @@ export interface LineageEntity {
   };
 }
 
-export interface LineageEdgeMetadata {
+export interface LineageEdgeMetadata extends Record<string, unknown> {
   sourceAttribute?: string;
   targetAttribute?: string;
   relationshipType?: 'FK' | 'DERIVED' | 'COPY';
