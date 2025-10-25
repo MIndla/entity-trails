@@ -206,7 +206,7 @@ const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
     source: "1",
     target: "2",
     type: "smoothstep",
-    label: "FK • 100%",
+    label: "FK",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "2-2",
@@ -223,7 +223,7 @@ const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
     source: "1",
     target: "3",
     type: "smoothstep",
-    label: "FK • 100%",
+    label: "FK",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "3-2",
@@ -240,7 +240,7 @@ const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
     source: "4",
     target: "3",
     type: "smoothstep",
-    label: "FK • 98%",
+    label: "FK",
     data: {
       sourceAttribute: "4-1",
       targetAttribute: "3-3",
@@ -257,7 +257,7 @@ const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
     source: "3",
     target: "5",
     type: "smoothstep",
-    label: "FK • 95%",
+    label: "FK",
     data: {
       sourceAttribute: "3-1",
       targetAttribute: "5-2",
@@ -274,7 +274,7 @@ const createInitialEdges = (): Edge<LineageEdgeMetadata>[] => [
     source: "1",
     target: "6",
     type: "smoothstep",
-    label: "FK • 100%",
+    label: "FK",
     data: {
       sourceAttribute: "1-1",
       targetAttribute: "6-2",
