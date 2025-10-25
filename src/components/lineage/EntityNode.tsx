@@ -43,6 +43,8 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
     ? "border-destructive"
     : data.type === "source"
     ? "border-primary"
+    : data.type === "derived"
+    ? "border-purple-500"
     : "border-accent";
 
   const handleToggleExpand = (e: React.MouseEvent) => {
@@ -55,10 +57,14 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
   };
 
   return (
-    <Card className={`min-w-[250px] bg-card border-2 ${borderColor} shadow-node transition-all ${
+    <Card className={`min-w-[250px] bg-card border-[3px] ${borderColor} shadow-node transition-all ${
       data.isHighlighted ? "ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/30" : ""
     }`}>
-      <Handle type="target" position={Position.Top} className="!bg-accent" />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="!bg-accent !w-3 !h-3 !border-2 !border-background"
+      />
       
       <div className="p-4">
         {/* Header */}
@@ -132,7 +138,11 @@ export const EntityNode = memo(({ data, id }: { data: EntityNodeData; id: string
         )}
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!bg-accent" />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="!bg-accent !w-3 !h-3 !border-2 !border-background"
+      />
     </Card>
   );
 });
