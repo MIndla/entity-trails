@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 import { LineageViewConfig, LineageEntity, ImpactAnalysis } from '@/types/lineage';
 
 export const useLineageState = () => {
