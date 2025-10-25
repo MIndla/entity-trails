@@ -14,12 +14,7 @@ export function LineageLegend() {
         
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-3.5 rounded border-2 border-accent bg-card" />
-          <span className="text-muted-foreground">Entity</span>
-        </div>
-        
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-3.5 rounded border-2 border-purple-500 bg-card" />
-          <span className="text-muted-foreground">Derived</span>
+          <span className="text-muted-foreground">Dependent</span>
         </div>
         
         <div className="flex items-center gap-1.5">
