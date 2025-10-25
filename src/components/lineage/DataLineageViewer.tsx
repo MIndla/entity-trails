@@ -39,10 +39,22 @@ const getLayoutedElements = (
 ) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: direction, nodesep: 80, ranksep: 120 });
+  dagreGraph.setGraph({ 
+    rankdir: direction, 
+    nodesep: 120, 
+    ranksep: 180,
+    edgesep: 50,
+    ranker: 'network-simplex'
+  });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 280, height: 200 });
+    // Estimate height based on number of attributes
+    const baseHeight = 120;
+    const attributeHeight = node.data.attributes?.length ? node.data.attributes.length * 28 : 0;
+    const metadataHeight = node.data.metadata ? 50 : 0;
+    const estimatedHeight = baseHeight + attributeHeight + metadataHeight;
+    
+    dagreGraph.setNode(node.id, { width: 280, height: Math.max(200, estimatedHeight) });
   });
 
   edges.forEach((edge) => {
