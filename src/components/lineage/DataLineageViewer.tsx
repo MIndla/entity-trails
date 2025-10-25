@@ -559,6 +559,16 @@ function DataLineageFlow() {
     setEdges(layoutedEdges);
   }, [nodes, edges, setNodes, setEdges, handleToggleExpand, handleAttributeClick]);
 
+  const handleResetLayout = useCallback(() => {
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      nodes.map(n => ({ ...n, data: { ...n.data, onToggleExpand: handleToggleExpand, onAttributeClick: handleAttributeClick } })),
+      edges,
+      layout
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, layout, setNodes, setEdges, handleToggleExpand, handleAttributeClick]);
+
   const handleClear = useCallback(() => {
     setNodes(prevNodes =>
       prevNodes.map(node => ({
@@ -691,6 +701,7 @@ function DataLineageFlow() {
                 onZoomIn={() => {}}
                 onZoomOut={() => {}}
                 onClear={handleClear}
+                onResetLayout={handleResetLayout}
               />
               <LineageLegend />
             </Panel>

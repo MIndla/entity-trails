@@ -1,4 +1,4 @@
-import { ArrowDownUp, Eye, EyeOff, X } from "lucide-react";
+import { ArrowDownUp, Eye, EyeOff, X, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ interface LineageToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onClear: () => void;
+  onResetLayout: () => void;
 }
 
 export function LineageToolbar({
@@ -31,6 +32,7 @@ export function LineageToolbar({
   nodeCount,
   edgeCount,
   onClear,
+  onResetLayout,
 }: LineageToolbarProps) {
   return (
     <Card className="p-2.5 bg-card/95 backdrop-blur-sm border-border shadow-elevated">
@@ -51,6 +53,16 @@ export function LineageToolbar({
               </SelectContent>
             </Select>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onResetLayout}
+            className="gap-2 h-7 text-xs px-2.5"
+          >
+            <LayoutGrid className="w-3 h-3" />
+            Reset Layout
+          </Button>
 
           <Button
             variant={showPIIOnly ? "default" : "outline"}
