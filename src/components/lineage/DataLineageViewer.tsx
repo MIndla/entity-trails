@@ -355,7 +355,7 @@ function DataLineageFlow() {
         setError(null);
         console.log('🔍 Fetching lineage for model:', modelId);
 
-        const response = await fetch(`/api/lineage/model/${modelId}`);
+        const response = await fetch(`http://localhost:3001/api/lineage/model/${modelId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const { nodes: apiNodesData, edges: apiEdgesData } = await response.json();
 
@@ -366,18 +366,31 @@ function DataLineageFlow() {
         });
 
         // Transform API nodes to React Flow format
-        const transformedNodes: Node<EntityNodeData>[] = apiNodesData.map((node: any, index: number) => ({
+        const transformedNodes: Node<EntityNodeData>[] = apiNodesData.map((node: any) => ({
           id: node.id,
           type: 'entity',
           position: { x: 0, y: 0 }, // Will be positioned by dagre
           data: {
             id: node.id,
             label: node.label || node.name,
-            entityType: node.type || 'entity',
+            type: node.type || 'entity',
             hasPII: node.hasPII || false,
-            attributes: node.attributes || [],
+            attributes: (node.attributes || []).map((attr: any) => ({
+              id: attr.id,
+              name: attr.name,
+              type: attr.type,
+              isPrimaryKey: attr.isPrimaryKey || false,
+              isForeignKey: attr.isForeignKey || false,
+              hasPII: attr.hasPII || false,
+              description: attr.description
+            })),
             isExpanded: true,
-            metadata: node.metadata || {}
+            metadata: {
+              owner: node.metadata?.owner,
+              domain: node.metadata?.domain,
+              documentation: node.metadata?.description,
+              rowCount: node.metadata?.rowCount
+            }
           }
         }));
 
