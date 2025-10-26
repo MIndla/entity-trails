@@ -14,7 +14,6 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
-import axios from "axios";
 
 import { EntityNode } from "./EntityNode";
 import { LineageToolbar } from "./LineageToolbar";
@@ -356,8 +355,9 @@ function DataLineageFlow() {
         setError(null);
         console.log('🔍 Fetching lineage for model:', modelId);
 
-        const response = await axios.get(`/api/lineage/model/${modelId}`);
-        const { nodes: apiNodesData, edges: apiEdgesData } = response.data;
+        const response = await fetch(`/api/lineage/model/${modelId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const { nodes: apiNodesData, edges: apiEdgesData } = await response.json();
 
         console.log('✅ Received data from API:', {
           nodes: apiNodesData.length,
