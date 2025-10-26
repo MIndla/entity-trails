@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
+import axios from "axios";
 
 import { EntityNode } from "./EntityNode";
 import { LineageToolbar } from "./LineageToolbar";
@@ -327,17 +328,135 @@ function DataLineageFlow() {
   const [impactMetrics, setImpactMetrics] = useState({ upstream: 0, downstream: 0 });
   const [leftPanelOpen, setLeftPanelOpen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiNodes, setApiNodes] = useState<Node<EntityNodeData>[]>([]);
+  const [apiEdges, setApiEdges] = useState<Edge<LineageEdgeMetadata>[]>([]);
 
-  const initialNodesData = useMemo(() => createInitialNodes(), []);
-  const initialEdgesData = useMemo(() => createInitialEdges(), []);
+  // Fetch lineage data from API
+  useEffect(() => {
+    const modelId = searchParams.get('modelId');
+    console.log('🎯 DataLineageFlow useEffect triggered, modelId:', modelId);
 
-  // Apply layout
+    if (!modelId) {
+      console.warn('⚠️ No modelId in URL, using mock data');
+      // Fallback to mock data if no modelId
+      const mockNodes = createInitialNodes();
+      const mockEdges = createInitialEdges();
+      console.log('📦 Mock data created:', { nodes: mockNodes.length, edges: mockEdges.length });
+      setApiNodes(mockNodes);
+      setApiEdges(mockEdges);
+      setLoading(false);
+      return;
+    }
+
+    const fetchLineageData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('🔍 Fetching lineage for model:', modelId);
+
+        const response = await axios.get(`/api/lineage/model/${modelId}`);
+        const { nodes: apiNodesData, edges: apiEdgesData } = response.data;
+
+        console.log('✅ Received data from API:', {
+          nodes: apiNodesData.length,
+          edges: apiEdgesData.length,
+          firstNode: apiNodesData[0]
+        });
+
+        // Transform API nodes to React Flow format
+        const transformedNodes: Node<EntityNodeData>[] = apiNodesData.map((node: any, index: number) => ({
+          id: node.id,
+          type: 'entity',
+          position: { x: 0, y: 0 }, // Will be positioned by dagre
+          data: {
+            id: node.id,
+            label: node.label || node.name,
+            entityType: node.type || 'entity',
+            hasPII: node.hasPII || false,
+            attributes: node.attributes || [],
+            isExpanded: true,
+            metadata: node.metadata || {}
+          }
+        }));
+
+        // Transform API edges to React Flow format
+        const transformedEdges: Edge<LineageEdgeMetadata>[] = apiEdgesData.map((edge: any) => ({
+          id: edge.id,
+          source: edge.sourceId,
+          target: edge.targetId,
+          type: 'smoothstep',
+          label: edge.linkType || edge.metadata?.relationshipType || 'FK',
+          data: {
+            relationshipType: edge.linkType || 'FK',
+            confidence: 100,
+            ...edge.metadata
+          },
+          labelStyle: {
+            fill: edge.linkType === 'DERIVED' ? 'hsl(var(--primary))' : 'hsl(var(--accent))',
+            fontWeight: 600,
+            fontSize: 11
+          },
+          labelBgStyle: { fill: 'hsl(var(--background))', fillOpacity: 0.9 },
+          style: {
+            stroke: edge.linkType === 'DERIVED' ? 'hsl(var(--primary))' : 'hsl(var(--accent))',
+            strokeWidth: 2,
+            strokeDasharray: edge.linkType === 'DERIVED' ? '5 5' : undefined
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: edge.linkType === 'DERIVED' ? 'hsl(var(--primary))' : 'hsl(var(--accent))'
+          },
+          animated: edge.linkType === 'DERIVED'
+        }));
+
+        console.log('🔄 Transformed nodes:', transformedNodes.length, 'edges:', transformedEdges.length);
+        console.log('📋 First transformed node:', transformedNodes[0]);
+
+        setApiNodes(transformedNodes);
+        setApiEdges(transformedEdges);
+        setLoading(false);
+        console.log('✅ API data set, loading=false');
+      } catch (err) {
+        console.error('❌ Error fetching lineage data:', err);
+        setError('Failed to load lineage data');
+        setLoading(false);
+        // Fallback to mock data on error
+        const fallbackNodes = createInitialNodes();
+        const fallbackEdges = createInitialEdges();
+        console.log('🔄 Using fallback mock data:', { nodes: fallbackNodes.length, edges: fallbackEdges.length });
+        setApiNodes(fallbackNodes);
+        setApiEdges(fallbackEdges);
+      }
+    };
+
+    fetchLineageData();
+  }, [searchParams]);
+
+  // Apply layout to API data
   const layoutedElements = useMemo(() => {
-    return getLayoutedElements(initialNodesData, initialEdgesData, layout);
-  }, [layout, initialNodesData, initialEdgesData]);
+    console.log('🎨 Layout calculation triggered. apiNodes:', apiNodes.length, 'apiEdges:', apiEdges.length);
+    if (apiNodes.length === 0) {
+      console.log('⚠️ No nodes to layout, returning empty');
+      return { nodes: [], edges: [] };
+    }
+    const result = getLayoutedElements(apiNodes, apiEdges, layout);
+    console.log('✅ Layout complete:', { nodes: result.nodes.length, edges: result.edges.length });
+    return result;
+  }, [layout, apiNodes, apiEdges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(layoutedElements.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedElements.edges);
+
+  console.log('🎯 Render state:', {
+    loading,
+    error,
+    apiNodes: apiNodes.length,
+    apiEdges: apiEdges.length,
+    nodes: nodes.length,
+    edges: edges.length
+  });
 
   // Calculate impact metrics
   const calculateImpact = useCallback((nodeId: string) => {
@@ -679,45 +798,62 @@ function DataLineageFlow() {
 
         {/* Center Panel - Graph */}
         <div className="flex-1 relative">
-          <ReactFlow
-            nodes={filteredNodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
-            onEdgeClick={handleEdgeClick}
-            onPaneClick={handleClear}
-            nodeTypes={nodeTypes}
-            fitView
-            className="bg-background"
-          >
-            <Background color="hsl(var(--border))" gap={16} size={1} />
-            <Controls className="!bg-card !border-border" />
-            <MiniMap
-              className="!bg-card !border-border"
-              nodeColor={(node) => {
-                if (node.data?.hasPII) return "hsl(var(--destructive))";
-                if (node.data?.type === "source") return "hsl(var(--primary))";
-                return "hsl(var(--accent))";
-              }}
-            />
-            <Panel position="top-left" className="flex gap-3">
-              <LineageToolbar
-                layout={layout}
-                onLayoutChange={handleLayoutChange}
-                showPIIOnly={showPIIOnly}
-                onTogglePIIOnly={() => setShowPIIOnly(!showPIIOnly)}
-                nodeCount={nodes.length}
-                edgeCount={edges.length}
-                onFitView={() => {}}
-                onZoomIn={() => {}}
-                onZoomOut={() => {}}
-                onClear={handleClear}
-                onResetLayout={handleResetLayout}
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading lineage data...</p>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-destructive">
+                <p className="text-lg font-semibold mb-2">Error loading lineage</p>
+                <p className="text-sm text-muted-foreground">{error}</p>
+                <p className="text-xs text-muted-foreground mt-2">Displaying mock data instead</p>
+              </div>
+            </div>
+          ) : (
+            <ReactFlow
+              nodes={filteredNodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              onEdgeClick={handleEdgeClick}
+              onPaneClick={handleClear}
+              nodeTypes={nodeTypes}
+              fitView
+              className="bg-background"
+            >
+              <Background color="hsl(var(--border))" gap={16} size={1} />
+              <Controls className="!bg-card !border-border" />
+              <MiniMap
+                className="!bg-card !border-border"
+                nodeColor={(node) => {
+                  if (node.data?.hasPII) return "hsl(var(--destructive))";
+                  if (node.data?.type === "source") return "hsl(var(--primary))";
+                  return "hsl(var(--accent))";
+                }}
               />
-              <LineageLegend />
-            </Panel>
-          </ReactFlow>
+              <Panel position="top-left" className="flex gap-3">
+                <LineageToolbar
+                  layout={layout}
+                  onLayoutChange={handleLayoutChange}
+                  showPIIOnly={showPIIOnly}
+                  onTogglePIIOnly={() => setShowPIIOnly(!showPIIOnly)}
+                  nodeCount={nodes.length}
+                  edgeCount={edges.length}
+                  onFitView={() => {}}
+                  onZoomIn={() => {}}
+                  onZoomOut={() => {}}
+                  onClear={handleClear}
+                  onResetLayout={handleResetLayout}
+                />
+                <LineageLegend />
+              </Panel>
+            </ReactFlow>
+          )}
         </div>
 
         {/* Right Panel - Collapsible Details */}
